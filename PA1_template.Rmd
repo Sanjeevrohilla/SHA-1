@@ -1,0 +1,203 @@
+---
+title: "Activity data"
+author: "Sanjeev Rohilla"
+date: "March 6, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Activity Monitoring Dataset 
+
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the "quantified self" movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day
+
+
+## Data to be Analyzed
+The data can be downloaded from the course web site:
+
+Dataset: Activity Monitoring Data 
+
+The variables included in this dataset are:
+
+steps: Number of steps taking in a 5-minute interval (missing values are coded as NA)
+
+date: The date on which the measurement was taken in YYYY-MM-DD format
+
+interval: Identifier for the 5-minute interval in which measurement was taken
+
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
+
+
+## R-code and Data Analysis 
+```{r echo = TRUE}
+activity <- read.csv("activity.csv")
+```
+
+### Summary of the Acivity Data
+```{r echo = TRUE}
+head(activity)
+```
+
+## Processing of the Data 
+
+```{r echo = TRUE, warning= FALSE}
+activity$day <- weekdays(as.Date(activity$date))
+activity$DateTime <- as.POSIXct(activity$date, format = " %Y-%M-%D")
+```
+
+## Extracting Data Without NA's
+
+```{r echo = TRUE, warning=FALSE}
+clean<- activity[!is.na(activity$steps),]
+head(clean)
+```
+
+## 2.Total no of Steps Taken Per Day
+This is a R-code to calculate the total number of steps taken per day.
+
+```{r echo = TRUE, warning=FALSE}
+sumTable <- aggregate(activity$steps~activity$date, FUN = sum)
+colnames(sumTable)<- c("Date","Steps")
+```
+
+## Summary of sumTable
+
+```{r echo = TRUE, warning= FALSE}
+head(sumTable)
+```
+
+## Histogram of the Total Number Of Steps Taken on a Single Day Basis
+This is an R-code to plot the histogram to represent the total number of steps per day.
+```{r echo=TRUE,warning=FALSE}
+hist(sumTable$Steps, breaks = 5,xlab = "Steps",main = "Total Steps Per Day")
+```
+
+## Calculating the mean and median of the total number of steps per day 
+As we know that mean and median are the two important aspects of statistical analysis.
+
+###Mean is commonly known as the average of the data/observations
+###Median is another way of measuring the middle of the dataset. Median is a point where there will be equal number of obervations above and below. Hence, Median is truly the middle of the dataset.
+
+Rcode for the calculation of Mean and Median of the activity Dataset
+```{r echo=TRUE, warning=FALSE}
+as.integer(mean(sumTable$Steps))
+as.integer(median(sumTable$Steps))
+```
+
+## Average Daily Activity Pattern:
+
+```{r echo=TRUE, warning= FALSE}
+clean <- activity[!is.na(activity$steps),]
+```
+
+
+## Create average number of Steps Per Interval
+```{r echo=TRUE}
+library(plyr)
+library(ggplot2)
+## Create Average number of steps per Interval
+intervalTable <- ddply(clean, .(interval), summarize, mean = mean(steps))
+
+## Create Line Plot of average number of steps per interval
+
+p<- ggplot(intervalTable, aes(x= interval,y= mean), xlab = "Interval",ylab = "Average Number of Steps")
+p+geom_line()+ xlab("Average number of steps") + ggtitle("Average Number of Steps Per Interval")
+```
+
+## Maximum Number of Steps in 5 Min Interval
+```{r echo=TRUE, warning=TRUE}
+maxsteps<- max(intervalTable$mean)
+
+## Interval that contains the maximum number of steps
+intervalTable[intervalTable$mean == maxsteps,1]
+ 
+### The maximum number of steps in a 5-min interval is 835
+```
+
+## Imputing Missing Values
+Calculation of Missing Values:
+```{r echo=TRUE, warning=FALSE}
+nrow(activity[is.na(activity$steps),])
+```
+
+## Implimentationof Missing Values in the dataset
+
+Substituting the misssing values based on the average 5-minute interval based on the day of the week. This can also be acheived by using median of 5-minute interval.
+
+### Creating the average number of steps per weekday and interval
+```{r echo =TRUE}
+avgTable<- ddply(clean,.(interval,day),summarize, mean = mean(steps))
+```
+
+## Create Dataset with average weekday interval for substution 
+```{r echo = TRUE}
+nadata<- activity[is.na(activity$steps),]
+```
+
+## Merging the data with the average weekday interval
+```{r echo=TRUE}
+newdata<- merge(nadata,avgTable, by = c("interval","day"))
+
+### Creating a dataset equal to the orignal dataset nut with the missing data filled in:
+ndata3 <- newdata[,c(6,4,1,2,5)]
+colnames(ndata3)<- c("steps","date","interval","day","DateTime")
+
+## Merging the dataset 
+merge <- rbind(clean, ndata3)
+
+## Creating Sum of Steps per date to compare the data with step 1
+
+sumTable2<- aggregate(merge$steps~merge$date, FUN = sum,)
+colnames(sumTable2)<- c("Date","Steps")
+
+```
+
+## Mean and Median of steps taken per day
+```{r echo=TRUE}
+as.integer(mean(sumTable2$Steps))
+as.integer(median(sumTable2$Steps))
+```
+
+
+## Histogram of the categorized data
+
+```{r echo=TRUE}
+hist(sumTable2$Steps, breaks = 5,xlab = "Steps",main = "Total Steps",col = "Black")
+hist(sumTable$Steps, breaks = 5,xlab = "Steps",main = "Total Steps",col = "Blue",add = T)
+legend("topright",c("Imputed Data","Non-NA Data"), fill = c("Black","Blue"))
+```
+
+The new mean of the imputed data is 10821 steps compared to the old mean of 10766 steps. That creates a difference of 55 steps on average per day.
+
+The new median of the imputed data is 11015 steps compared to the old median of 10765 steps. That creates a difference of 250 steps for the median.
+
+However, the overall shape of the distribution has not changed.
+
+## Difference in Activity Patterns between weekdays and weekend
+
+```{r echo=TRUE}
+merge$DayCategory <- ifelse(merge$day %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
+
+## Time -series Plot of 5-min interval
+library(lattice)
+## Summarize data by interval and type of day
+intervalTable2<- ddply(merge,.(interval,DayCategory),summarize, mean = mean(steps))
+```
+
+## Plot Data in a Panel Plot to show the difference between the activities performed 
+
+```{r echo=TRUE, warning= FALSE}
+xyplot(mean~interval|DayCategory, data=intervalTable2, type="l",  layout = c(1,2),
+       main="Average Steps per Interval Based on Type of Day", 
+       ylab="Average Number of Steps", xlab="Interval")
+```
+
+
+
+
+
+Note that the `echo = TRUE` parameter was added to the code chunk to enable printing of the R code that generated the analysis and plot.
